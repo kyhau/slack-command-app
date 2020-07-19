@@ -19,13 +19,18 @@ child_lambda_name = os.environ["WorkerLambdaFunctionName"]
 lambda_client = boto3.client("lambda")
 
 
-def respond(res, err=None):
+def respond(message):
+    logging.info(message)
+    resp = {
+        "response_type": "in_channel",    # visible to all channel members
+        "text": message,
+    }
     return {
-        "body": str(err) if err else json.dumps(res),
+        "body": json.dumps(resp),
         "headers": {
             "Content-Type": "application/json",
         },
-        "statusCode": "400" if err else "200",
+        "statusCode": "200",
     }
 
 
@@ -41,13 +46,14 @@ def invoke_lambda(function_namme, payload_json):
 
 def lambda_handler(event, context):
     params = parse_qs(event["body"])
+    user_id = params["user_id"][0]
+    
     token = params["token"][0]
     if token != expected_token:
-        logging.error("Request token (%s) does not match expected ", token)
-        return respond(None, err=Exception("Invalid request token"))
+        logging.error(f"Request token ({token}) does not match expected.")
+        return respond(f"@<{user_id}> Invalid request token. Please contact your admin.")
 
     user = params["user_name"][0]
-    user_id = params["user_id"][0]
     command = params["command"][0]
     channel = params["channel_name"][0]
     command_text = params.get("text", [None])[0]
@@ -63,15 +69,10 @@ def lambda_handler(event, context):
             message = f"Processing request from <@{user_id}> on {channel}: {command} {command_text}"
         else:
             logging.error(resp)
-            message = f"Sorry <@{user_id}>, your request on {channel} ({command} {command_text}) cannot be" \
+            message = f"<@{user_id}>, your request on {channel} ({command} {command_text}) cannot be" \
                       + " processed at the moment. Please try again later."
 
     if message is None:
-        message = f"Sorry @{user_id}>, I do not support {command} {command_text}."
+        message = f"@<{user_id}>, I do not support {command} {command_text}."
 
-    logging.info(message)
-    resp = {
-        "response_type": "in_channel",    # visible to all channel members
-        "text": message,
-    }
-    return respond(resp)
+    return respond(message)
