@@ -1,0 +1,305 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create API Gateway, Lambda Function, KMS resources for building a Slack app/bot.
+
+Parameters:
+  ApiGatewayStageName:
+    Description: Stage name of the API Gateway
+    Type: String
+    AllowedPattern: ^[a-z0-9]+$
+    Default: v1
+  AppCodeName:
+    Description: App name (e.g. slack-app)
+    Type: String
+  KeyAdminRoleArn:
+    Description: The ARN of a role managing kms keys
+    Type: String
+  LambdaBucketName:
+    Description: Name of your S3 bucket that holds the lambda zip file
+    Type: String
+  LambdaPackage:
+    Description: Name of lambda zip file including .zip e.g "functions.zip"
+    Type: String
+  LogRetention:
+    Description: Days to keep application logs
+    Type: Number
+    Default: 1
+
+Resources:
+  LogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AppCodeName}-logs
+      AccessControl: LogDeliveryWrite
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteContentAfter14Days
+            Status: Enabled
+            ExpirationInDays: 7
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  LogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LogsBucket
+      PolicyDocument:
+        Statement:
+          - Sid: Prevent Accidental Bucket Deletion
+            Effect: Deny
+            Principal: "*"
+            Action: s3:DeleteBucket
+            Resource:
+              - !Sub arn:aws:s3:::${LogsBucket}
+
+  ## Lambda role and function - Worker
+  LambdaRoleWorker:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-Worker-ExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-Worker-ExecutionRolePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:Put*
+                Resource: "*"
+
+  LambdaFunctionWorker:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-Worker
+      Handler: slack_app_worker.lambda_handler
+      Runtime: python3.7
+      MemorySize: 1024
+      Timeout: 900
+      Code:
+        #S3Bucket: !Ref LambdaBucketName
+        #S3Key: !Ref LambdaPackage
+        ZipFile: |
+          def lambda_handler(event, context):
+              # This function will be updated through CI/CD
+              return "Hello from Lambda!"
+      Role: !GetAtt LambdaRoleWorker.Arn
+      TracingConfig:
+        Mode: Active
+  LogGroupLambdaFunctionWorker:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ["/", ["/aws/lambda", !Ref LambdaFunctionWorker]]
+      RetentionInDays: !Ref LogRetention
+
+  ## Lambda role and function - Immediate Response
+  LambdaRoleImmediateResponse:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-ImmediateResponse-ExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-ExecutionRolePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:InvokeAsync
+                Resource:
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-Worker
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:GenerateDataKey*
+                Resource:
+                  - !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/${AppCodeName}
+              - Effect: Allow
+                Action:
+                  - xray:Put*
+                Resource: "*"
+
+  KmsKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Delete
+    Properties:
+      EnableKeyRotation: True
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Sid: Allow access for Key Administrators
+            Effect: Allow
+            Principal:
+              AWS: !Ref KeyAdminRoleArn
+            Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:TagResource
+              - kms:UntagResource
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+            Resource: "*"
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt LambdaRoleImmediateResponse.Arn
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: "*"
+          - Sid: Allow attachment of persistent resources
+            Effect: Allow
+            Principal:
+              AWS: !Ref KeyAdminRoleArn
+            Action:
+              - kms:CreateGrant
+              - kms:ListGrants
+              - kms:RevokeGrant
+            Resource: '*'
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
+
+  KmsAlias:
+    Type: AWS::KMS::Alias
+    DependsOn: KmsKey
+    DeletionPolicy: Delete
+    Properties:
+      AliasName: !Sub alias/${AppCodeName}
+      TargetKeyId: !Ref KmsKey
+
+  LambdaFunctionImmediateResponse:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-ImmediateResponse
+      Handler: slack_app_immediate_response.lambda_handler
+      Runtime: python3.7
+      MemorySize: 1024
+      Timeout: 900
+      Code:
+        #S3Bucket: !Ref LambdaBucketName
+        #S3Key: !Ref LambdaPackage
+        ZipFile: |
+          def lambda_handler(event, context):
+              # This function will be updated through CI/CD
+              return "Hello from Lambda!"
+      Role: !GetAtt LambdaRoleImmediateResponse.Arn
+      TracingConfig:
+        Mode: Active
+      Environment:
+        Variables:
+          WorkerLambdaFunctionName: !Ref LambdaFunctionWorker
+          KmsEncryptedToken: "TODO-read-from-parameter-store"
+      KmsKeyArn: !GetAtt KmsKey.Arn
+  LogGroupLambdaFunctionImmediateResponse:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ["/", ["/aws/lambda", !Ref LambdaFunctionImmediateResponse]]
+      RetentionInDays: !Ref LogRetention
+
+  ## API Gateway
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub ${AWS::StackName}-API
+      ApiKeySourceType: HEADER
+      Description: !Sub API for ${AppCodeName}
+
+  LookupResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt RestApi.RootResourceId
+      RestApiId: !Ref RestApi
+      PathPart: "lookup"
+
+  LookupMethodAny:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref RestApi
+      ResourceId: !Ref LookupResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionImmediateResponse.Arn}/invocations"
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: ""
+            StatusCode: "200"
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+      MethodResponses:
+        - StatusCode: "200"
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - LookupMethodAny
+    Properties:
+      RestApiId: !Ref RestApi
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    DependsOn:
+      - LookupMethodAny
+    Properties:
+      RestApiId: !Ref RestApi
+      StageName: !Ref ApiGatewayStageName
+      DeploymentId: !Ref ApiGatewayDeployment
+      TracingEnabled: true
+
+  LambdaLookupMethodAnyGatewayInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunctionImmediateResponse.Arn
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RestApi}/*/*"
+
+Outputs:
+  ApigEndpoint:
+    Description: API Gateway endpoint
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayStageName}"
