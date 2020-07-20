@@ -7,11 +7,11 @@ which will take longer than [3 seconds](https://api.slack.com/events-api) to pro
 the user.
 
 To create config a **Slack Command** in Slack (the default command in this repo is **`/lookup`**)
-1. Navigate to `https://<your-team-domain>.slack.com/services/new`
-2. Search for and select ""Slash Commands"".
-3. Enter the name **`/lookup`** for the command and click ""Add Slash Command Integration**.
-4. Copy the token string from the integration settings and use it in the next section.
-5. Enter the provided API endpoint URL in the URL field.
+1. Navigate to https://api.slack.com/apps.
+2. Select **Create New App** and select **Slash Commands**.
+3. Enter the name **`/lookup`** for the command and click **Add Slash Command Integration**.
+4. Enter the provided API endpoint URL in the URL field.
+5. Copy the **Verification Token** from **Basic Information**.
 
 Deploy a CloudFormation stack with 
 [cloudformation/slack_command_app_template.yaml](cloudformation/slack_command_app_template.yaml), 
