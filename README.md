@@ -1,16 +1,26 @@
 # slack_command_app
 
-Provides a custom template based on the approach illustrated in the AWS blog post 
-[Slack Integration Blueprints for AWS Lambda](
-https://aws.amazon.com/blogs/aws/new-slack-integration-blueprints-for-aws-lambda/).
+This repo provides the source code for building a Slack App/Bot with AWS API Gateway and Lambda Functions.
+This SlackApp can can handle requests triggered from a 
+[Slack Command](https://api.slack.com/interactivity/slash-commands)
+which will take longer than [3 seconds](https://api.slack.com/events-api) to process, and posts the details back to
+the user.
 
-Slack App
-1. Create a Slack Command (`/lookup`)
+To create config a **Slack Command** in Slack (the default command in this repo is **`/lookup`**)
+1. Navigate to `https://<your-team-domain>.slack.com/services/new`
+2. Search for and select ""Slash Commands"".
+3. Enter the name **`/lookup`** for the command and click ""Add Slash Command Integration**.
+4. Copy the token string from the integration settings and use it in the next section.
+5. Enter the provided API endpoint URL in the URL field.
 
-AWS Components
+Deploy a CloudFormation stack with 
+[cloudformation/slack_command_app_template.yaml](cloudformation/slack_command_app_template.yaml), 
+that creates the following AWS Components
 1. An API Gateway to provide an endpoint to be invoked from a Slack Command.
-2. A Lambda Function to perform authentication, some basic checks and send an intermediate response to Slack
-   within 3 seconds (Slack requirement).
-3. A Lambda Function to perform actual operation which may take more than 3 seconds to finish.
+2. A Lambda Function [lambda/slack_app_immediate_response.py](lambda/slack_app_immediate_response.py) 
+   to perform authentication, some basic checks and send an intermediate response to Slack within 3 seconds
+   (Slack requirement).
+3. A Lambda Function [lambda/slack_app_worker.py](lambda/slack_app_worker.py)
+   to perform actual operation which may take more than 3 seconds to finish.
 4. A KMS key for encryption in transit for Slack token.
 5. A S3 bucket for storing Lambda logs.
