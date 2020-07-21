@@ -6,7 +6,7 @@ This SlackApp can can handle requests triggered from a
 which will take longer than [3 seconds](https://api.slack.com/events-api) to process, and posts the details back to
 the user.
 
-To create config a **Slack Command** in Slack (the default command in this repo is **`/lookup`**)
+To create a **Slack Command** in Slack (the default command in this repo is **`/lookup`**)
 1. Navigate to https://api.slack.com/apps.
 2. Select **Create New App** and select **Slash Commands**.
 3. Enter the name **`/lookup`** for the command and click **Add Slash Command Integration**.
