@@ -2,20 +2,12 @@ import boto3
 import json
 import logging
 import os
-from base64 import b64decode
 from urllib.parse import parse_qs
-
-ENCRYPTED = os.environ["KmsEncryptedToken"]
-# Decrypt code should run once and variables stored outside of the function
-# handler so that these are decrypted once per container
-expected_token = boto3.client("kms").decrypt(
-    CiphertextBlob=b64decode(ENCRYPTED),
-    EncryptionContext={"LambdaFunctionName": os.environ["AWS_LAMBDA_FUNCTION_NAME"]},
-)["Plaintext"].decode("utf-8")
 
 logging.getLogger().setLevel(logging.INFO)
 
 child_lambda_name = os.environ["WorkerLambdaFunctionName"]
+parameter_key = os.environ["SlackAppEncryptedToken"]
 lambda_client = boto3.client("lambda")
 
 
@@ -49,7 +41,7 @@ def lambda_handler(event, context):
     user_id = params["user_id"][0]
     
     token = params["token"][0]
-    if token != expected_token:
+    if token != boto3.client("ssm").get_parameter(Name=parameter_key, WithDecryption=True)["Parameter"]["Value"]:
         logging.error(f"Request token ({token}) does not match expected.")
         return respond(f"@<{user_id}> Invalid request token. Please contact your admin.")
 
