@@ -7,7 +7,7 @@ from urllib.parse import parse_qs
 logging.getLogger().setLevel(logging.INFO)
 
 child_lambda_name = os.environ["WorkerLambdaFunctionName"]
-parameter_key = os.environ["SlackAppEncryptedToken"]
+parameter_key = os.environ["SlackAppTokenParameterKey"]
 lambda_client = boto3.client("lambda")
 
 
@@ -39,7 +39,7 @@ def invoke_lambda(function_namme, payload_json):
 def lambda_handler(event, context):
     params = parse_qs(event["body"])
     user_id = params["user_id"][0]
-    
+
     token = params["token"][0]
     if token != boto3.client("ssm").get_parameter(Name=parameter_key, WithDecryption=True)["Parameter"]["Value"]:
         logging.error(f"Request token ({token}) does not match expected.")
@@ -52,7 +52,7 @@ def lambda_handler(event, context):
     logging.info(f"{user} invoked {command} in {channel} with the following text: {command_text}")
 
     message = None
-    
+
     if command == "/lookup" and command_text:
         payload = {k: v for k, v in params.items() if k not in ["token", "trigger_id"]}
 
