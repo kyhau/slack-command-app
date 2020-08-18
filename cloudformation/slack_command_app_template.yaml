@@ -8,7 +8,7 @@ Parameters:
     AllowedPattern: ^[a-z0-9]+$
     Default: v1
   AppCodeName:
-    Description: App name (e.g. slack-app)
+    Description: App name (in lower case e.g. slack-app)
     Type: String
   KeyAdminRoleArn:
     Description: The ARN of a role managing kms keys
@@ -23,6 +23,10 @@ Parameters:
     Description: Days to keep application logs
     Type: Number
     Default: 1
+  SlackAppTokenParameterKey:
+    Description: Key of the parameter storing the Slack App token in the Parameter Store
+    Type: String
+    Default: /apps/slack_app/xxx/token
 
 Resources:
   LogsBucket:
@@ -136,6 +140,11 @@ Resources:
                   - !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/${AppCodeName}
               - Effect: Allow
                 Action:
+                  - ssm:GetParameter
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SlackAppTokenParameterKey}
+              - Effect: Allow
+                Action:
                   - xray:Put*
                 Resource: "*"
 
@@ -227,8 +236,8 @@ Resources:
       Environment:
         Variables:
           WorkerLambdaFunctionName: !Ref LambdaFunctionWorker
-          KmsEncryptedToken: "TODO-read-from-parameter-store"
-      KmsKeyArn: !GetAtt KmsKey.Arn
+          SlackAppTokenParameterKey: !Ref SlackAppTokenParameterKey
+      #KmsKeyArn: !GetAtt KmsKey.Arn
   LogGroupLambdaFunctionImmediateResponse:
     Type: AWS::Logs::LogGroup
     Properties:
