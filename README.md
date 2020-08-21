@@ -5,7 +5,7 @@ This SlackApp can can handle requests triggered from a [Slack Command](https://a
 
 ### Overview
 
-![Architecture](assets/SlackApp-ArchitectureOverview.png)
+![Architecture](doc/SlackApp-ArchitectureOverview.png)
 
 ### Setup on Slack
 
