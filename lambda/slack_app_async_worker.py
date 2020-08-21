@@ -1,5 +1,5 @@
 """
-For processing requests which will take longer than 3 seconds to process.
+For processing requests that will take longer than 3 seconds to process.
 """
 import json
 import logging
@@ -27,10 +27,12 @@ def lambda_handler(event, context):
     channel = event["channel_name"][0]
     command_text = event.get("text", [None])[0]
     response_url = event.get("response_url")[0]
-    
+
     message = f"<@{user_id}> invoked {command} in {channel} with the following text: {command_text}"
     logging.info(message)
 
     post_response_to_slack(response_url, message)
 
-    return {"statusCode": 200}
+    return {
+        "statusCode": 200,
+    }

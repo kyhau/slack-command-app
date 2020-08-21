@@ -6,7 +6,8 @@ from urllib.parse import parse_qs
 
 logging.getLogger().setLevel(logging.INFO)
 
-child_lambda_name = os.environ["WorkerLambdaFunctionName"]
+child_async_function_name = os.environ["AsyncWorkerLambdaFunctionName"]
+child_sync_function_name = os.environ["SyncWorkerLambdaFunctionName"]
 parameter_key = os.environ["SlackAppTokenParameterKey"]
 lambda_client = boto3.client("lambda")
 
@@ -26,12 +27,12 @@ def respond(message):
     }
 
 
-def invoke_lambda(function_namme, payload_json):
+def invoke_lambda(function_namme, payload_json, is_async):
     payload_str = json.dumps(payload_json)
     payload_bytes_arr = bytes(payload_str, encoding="utf8")
     return lambda_client.invoke(
         FunctionName=function_namme,
-        InvocationType="Event",  # asynchronous invocation
+        InvocationType="Event" if is_async else "RequestResponse",
         Payload=payload_bytes_arr
     )
 
@@ -56,10 +57,23 @@ def lambda_handler(event, context):
     if command == "/lookup" and command_text:
         payload = {k: v for k, v in params.items() if k not in ["token", "trigger_id"]}
 
-        resp = invoke_lambda(child_lambda_name, payload)
+        mode = command_text.split(" ")[0]
+        is_async = mode.lower() == "async"
+
+        function_name = child_async_function_name if is_async is True else child_sync_function_name
+
+        resp = invoke_lambda(function_name, payload, is_async)
         if resp["ResponseMetadata"]["HTTPStatusCode"] in [200, 201, 202]:
-            message = f"Processing request from <@{user_id}> on {channel}: {command} {command_text}"
-        else:
+            if is_async:
+                message = f"Processing request from <@{user_id}> on {channel}: {command} {command_text}"
+            else:
+                try:
+                    payload = json.loads(resp["Payload"].read().decode("utf-8"))["body"]
+                    message = f"<@{user_id}>: {command} {command_text}\n{payload}"
+                except Exception as e:
+                    logging.error(f"Failed to retrieve response from sync lambda {function_name}: {e}")
+
+        if message is None:
             logging.error(resp)
             message = f"<@{user_id}>, your request on {channel} ({command} {command_text}) cannot be" \
                       + " processed at the moment. Please try again later."

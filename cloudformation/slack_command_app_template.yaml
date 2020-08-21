@@ -16,7 +16,10 @@ Parameters:
   LambdaBucketName:
     Description: Name of your S3 bucket that holds the lambda zip file
     Type: String
-  LambdaPackage:
+  LambdaFunctionAsyncWorkerPackage:
+    Description: Name of lambda zip file including .zip e.g "functions.zip"
+    Type: String
+  LambdaFunctionSyncWorkerPackage:
     Description: Name of lambda zip file including .zip e.g "functions.zip"
     Type: String
   LogRetention:
@@ -82,11 +85,11 @@ Resources:
                   - xray:Put*
                 Resource: "*"
 
-  LambdaFunctionWorker:
+  LambdaFunctionAsyncWorker:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub ${AWS::StackName}-Worker
-      Handler: slack_app_worker.lambda_handler
+      FunctionName: !Sub ${AWS::StackName}-Async-Worker
+      Handler: slack_app_async_worker.lambda_handler
       Runtime: python3.7
       MemorySize: 1024
       Timeout: 900
@@ -100,10 +103,34 @@ Resources:
       Role: !GetAtt LambdaRoleWorker.Arn
       TracingConfig:
         Mode: Active
-  LogGroupLambdaFunctionWorker:
+  LogGroupLambdaFunctionAsyncWorker:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Join ["/", ["/aws/lambda", !Ref LambdaFunctionWorker]]
+      LogGroupName: !Join ["/", ["/aws/lambda", !Ref LambdaFunctionAsyncWorker]]
+      RetentionInDays: !Ref LogRetention
+
+  LambdaFunctionSyncWorker:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-Sync-Worker
+      Handler: slack_app_sync_worker.lambda_handler
+      Runtime: python3.7
+      MemorySize: 1024
+      Timeout: 900
+      Code:
+        #S3Bucket: !Ref LambdaBucketName
+        #S3Key: !Ref LambdaPackage
+        ZipFile: |
+          def lambda_handler(event, context):
+              # This function will be updated through CI/CD
+              return "Hello from Lambda!"
+      Role: !GetAtt LambdaRoleWorker.Arn
+      TracingConfig:
+        Mode: Active
+  LogGroupLambdaFunctionSyncWorker:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ["/", ["/aws/lambda", !Ref LambdaFunctionSyncWorker]]
       RetentionInDays: !Ref LogRetention
 
   ## Lambda role and function - Immediate Response
@@ -130,7 +157,8 @@ Resources:
                   - lambda:InvokeFunction
                   - lambda:InvokeAsync
                 Resource:
-                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-Worker
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-Async-Worker
+                  - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-Sync-Worker
               - Effect: Allow
                 Action:
                   - kms:Decrypt
@@ -235,7 +263,8 @@ Resources:
         Mode: Active
       Environment:
         Variables:
-          WorkerLambdaFunctionName: !Ref LambdaFunctionWorker
+          AsyncWorkerLambdaFunctionName: !Ref LambdaFunctionAsyncWorker
+          SyncWorkerLambdaFunctionName: !Ref LambdaFunctionSyncWorker
           SlackAppTokenParameterKey: !Ref SlackAppTokenParameterKey
       #KmsKeyArn: !GetAtt KmsKey.Arn
   LogGroupLambdaFunctionImmediateResponse:
