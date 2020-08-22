@@ -10,18 +10,24 @@ Parameters:
   AppCodeName:
     Description: App name (in lower case e.g. slack-app)
     Type: String
+  ArtifactsBucketName:
+    Description: Name of your S3 bucket that holds the lambda zip file
+    Type: String
   KeyAdminRoleArn:
     Description: The ARN of a role managing kms keys
-    Type: String
-  LambdaBucketName:
-    Description: Name of your S3 bucket that holds the lambda zip file
     Type: String
   LambdaFunctionAsyncWorkerPackage:
     Description: Name of lambda zip file including .zip e.g "functions.zip"
     Type: String
+    Default: slack_app_async_worker.zip
+  LambdaFunctionImmediateResponsePackage:
+    Description: Name of lambda zip file including .zip e.g "functions.zip"
+    Type: String
+    Default: slack_app_immediate_response.zip
   LambdaFunctionSyncWorkerPackage:
     Description: Name of lambda zip file including .zip e.g "functions.zip"
     Type: String
+    Default: slack_app_sync_worker.zip
   LogRetention:
     Description: Days to keep application logs
     Type: Number
@@ -94,12 +100,12 @@ Resources:
       MemorySize: 1024
       Timeout: 900
       Code:
-        #S3Bucket: !Ref LambdaBucketName
-        #S3Key: !Ref LambdaPackage
-        ZipFile: |
-          def lambda_handler(event, context):
-              # This function will be updated through CI/CD
-              return "Hello from Lambda!"
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Ref LambdaFunctionAsyncWorkerPackage
+        #ZipFile: |
+        #  def lambda_handler(event, context):
+        #      # This function will be updated through CI/CD
+        #      return "Hello from Lambda!"
       Role: !GetAtt LambdaRoleWorker.Arn
       TracingConfig:
         Mode: Active
@@ -118,12 +124,12 @@ Resources:
       MemorySize: 1024
       Timeout: 900
       Code:
-        #S3Bucket: !Ref LambdaBucketName
-        #S3Key: !Ref LambdaPackage
-        ZipFile: |
-          def lambda_handler(event, context):
-              # This function will be updated through CI/CD
-              return "Hello from Lambda!"
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Ref LambdaFunctionSyncWorkerPackage
+        #ZipFile: |
+        #  def lambda_handler(event, context):
+        #      # This function will be updated through CI/CD
+        #      return "Hello from Lambda!"
       Role: !GetAtt LambdaRoleWorker.Arn
       TracingConfig:
         Mode: Active
@@ -252,12 +258,12 @@ Resources:
       MemorySize: 1024
       Timeout: 900
       Code:
-        #S3Bucket: !Ref LambdaBucketName
-        #S3Key: !Ref LambdaPackage
-        ZipFile: |
-          def lambda_handler(event, context):
-              # This function will be updated through CI/CD
-              return "Hello from Lambda!"
+        S3Bucket: !Ref ArtifactsBucketName
+        S3Key: !Ref LambdaFunctionImmediateResponsePackage
+        #ZipFile: |
+        #  def lambda_handler(event, context):
+        #      # This function will be updated through CI/CD
+        #      return "Hello from Lambda!"
       Role: !GetAtt LambdaRoleImmediateResponse.Arn
       TracingConfig:
         Mode: Active
