@@ -1,8 +1,9 @@
-import boto3
 import json
 import logging
 import os
 from urllib.parse import parse_qs
+
+import boto3
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -57,10 +58,17 @@ def lambda_handler(event, context):
     if command == "/lookup" and command_text:
         payload = {k: v for k, v in params.items() if k not in ["token", "trigger_id"]}
 
-        mode = command_text.split(" ")[0]
-        is_async = mode.lower() == "async"
+        arguments = command_text.split(" ")
 
+        is_async = arguments[0].lower() == "async"
         function_name = child_async_function_name if is_async is True else child_sync_function_name
+
+        if arguments[0].lower() == "smile":
+            function_name, is_async, latest = "SmileFunction", False, False
+            if len(arguments) > 1:
+                payload["topic"] = arguments[1].lower()
+                if len(arguments) > 2:
+                    payload["latest"] = arguments[2].lower() == "latest"
 
         resp = invoke_lambda(function_name, payload, is_async)
         if resp["ResponseMetadata"]["HTTPStatusCode"] in [200, 201, 202]:
