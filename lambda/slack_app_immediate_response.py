@@ -1,8 +1,9 @@
-import boto3
 import json
 import logging
 import os
 from urllib.parse import parse_qs
+
+import boto3
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -55,6 +56,7 @@ def lambda_handler(event, context):
     message = None
 
     if command == "/lookup" and command_text:
+        # Remove sensitive data in payload before passing to other functions
         payload = {k: v for k, v in params.items() if k not in ["token", "trigger_id"]}
 
         mode = command_text.split(" ")[0]

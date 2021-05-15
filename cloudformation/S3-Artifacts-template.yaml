@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create S3 bucket and create bucket policy to enforce encryption.
+
+Parameters:
+  BucketName:
+    Description: Name of the S3 bucket, which must be globally unique
+    Type: String
+  DeleteContentAfterDays:
+    Description: The number of days to keep the objects.
+    Type: Number
+    Default: 7
+  KMSMasterKeyID:
+    Description: KMS Master Key ID. Required only if selecting aws:kms in ServerSideEncryptionAlgorithm.
+    Type: String
+  ServerSideEncryptionAlgorithm:
+    Description: Specify server side encryption. Choose None to disable server side encryption.
+    Type: String
+    AllowedValues: [AES256, 'aws:kms']
+    Default: AES256
+
+Conditions:
+  UseKms: !Equals ['aws:kms', !Ref ServerSideEncryptionAlgorithm]
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: !If
+              - UseKms
+              - SSEAlgorithm: !Ref ServerSideEncryptionAlgorithm
+                KMSMasterKeyID: !Ref KMSMasterKeyID
+              - SSEAlgorithm: !Ref ServerSideEncryptionAlgorithm
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteContentAfterDays
+            Status: Enabled
+            ExpirationInDays: !Ref DeleteContentAfterDays
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  BucketArn:
+    Description: ARN of the bucket.
+    Value: !GetAtt S3Bucket.Arn
+  BucketName:
+    Description: Name of the bucket.
+    Value: !Ref S3Bucket
+    #Export:
+    #  Name: !Ref BucketExportName

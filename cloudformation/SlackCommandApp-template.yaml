@@ -96,7 +96,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${AWS::StackName}-Async-Worker
       Handler: slack_app_async_worker.lambda_handler
-      Runtime: python3.7
+      Runtime: python3.8
       MemorySize: 1024
       Timeout: 900
       Code:
@@ -120,7 +120,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${AWS::StackName}-Sync-Worker
       Handler: slack_app_sync_worker.lambda_handler
-      Runtime: python3.7
+      Runtime: python3.8
       MemorySize: 1024
       Timeout: 900
       Code:
@@ -254,7 +254,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${AWS::StackName}-ImmediateResponse
       Handler: slack_app_immediate_response.lambda_handler
-      Runtime: python3.7
+      Runtime: python3.8
       MemorySize: 1024
       Timeout: 900
       Code:

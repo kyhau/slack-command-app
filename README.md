@@ -27,3 +27,10 @@ To create a **Slack Command** in Slack (the default command in this repo is **`/
     4. A Lambda Function [lambda/slack_app_sync_worker.py](lambda/slack_app_sync_worker.py) to perform actual operation that takes less than 3 seconds to finish.
     5. A KMS key for encryption in transit for Slack token.
     6. A S3 bucket for storing logs.
+
+### Try it on Slack
+
+E.g. if command is `/lookup`, then
+
+1. Run `/lookup async`
+1. Run `/lookup sync`

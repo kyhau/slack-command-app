@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-ARTIFACTS_BUCKET="TODO"
+ARTIFACTS_BUCKET="reddeer-slackapp-artifacts-nf9jhwe0"
 
-pushd lambda
+cd lambda
 
 array=(
   slack_app_immediate_response
@@ -22,4 +22,4 @@ for item in ${array[*]}; do
     echo "Removed local ${item}.zip"
 done
 
-popd
+cd -
