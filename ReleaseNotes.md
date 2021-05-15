@@ -1,4 +1,4 @@
-0.3.1 - 2021-05-15
+0.3.0 - 2021-05-15
 ==================
 1. Updated Lambda Runtime from Python3.7 to Python3.8
 2. Added [S3-Artifacts-template.yaml](cloudformation/S3-Artifacts-template.yaml).
