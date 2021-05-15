@@ -13,6 +13,9 @@ Parameters:
   ArtifactsBucketName:
     Description: Name of your S3 bucket that holds the lambda zip file
     Type: String
+  BucketNameRandomKey:
+    Description: Addition part appending to bucket name
+    Type: String
   KeyAdminRoleArn:
     Description: The ARN of a role managing kms keys
     Type: String
@@ -41,7 +44,7 @@ Resources:
   LogsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AppCodeName}-logs
+      BucketName: !Sub ${AppCodeName}-logs-${BucketNameRandomKey}
       AccessControl: LogDeliveryWrite
       LifecycleConfiguration:
         Rules:
