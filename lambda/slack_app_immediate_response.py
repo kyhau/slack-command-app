@@ -81,6 +81,6 @@ def lambda_handler(event, context):
                       + " processed at the moment. Please try again later."
 
     if message is None:
-        message = f"@<{user_id}>, I do not support {command} {command_text}."
+        message = f"<@{user_id}>, I do not support {command} {command_text}."
 
     return respond(message)
