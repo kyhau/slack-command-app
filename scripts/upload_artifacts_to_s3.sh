@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-ARTIFACTS_BUCKET="reddeer-slackapp-artifacts-nf9jhwe0"
+ARTIFACTS_BUCKET="TODO"
 
 cd lambda
 
