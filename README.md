@@ -1,11 +1,11 @@
 # slack-command-app
 
-This repo provides the source code for building a Slack App/Bot with AWS API Gateway and Lambda Functions.
+This repo provides the source code for building a Slack Command App/Bot with AWS API Gateway and Lambda Functions.
 This SlackApp can handle requests triggered from a [Slash Command](https://api.slack.com/interactivity/slash-commands) which will take longer than [3 seconds](https://api.slack.com/events-api) to process, and posts the details back to the user.
 
 ### Overview
 
-![Architecture](doc/SlackApp-ArchitectureOverview.png)
+![Architecture](docs/SlackApp-ArchitectureOverview.png)
 
 ### Setup on Slack
 
